@@ -59,6 +59,6 @@ If you want to develop or build the binaries yourself, follow these steps.
 Clone the repo and place the correct `ffmpeg` binary in the root folder:
 
 ```bash
-git clone [https://github.com/ARTIILK/MediaForge.git](https://github.com/ARTIILK/MediaForge.git)
+git clone https://github.com/ARTIILK/MediaForge.git
 cd MediaForge
 # Download ffmpeg binary manually and place it here
