@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediaForge V3.2</title>
+    <script src="{{ url_for('static', filename='js/tailwindcss.js') }}"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: { extend: { colors: { darkbg: '#0f172a', cardbg: '#1e293b', sidebar: '#020617' } } }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 4px; }
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .terminal-logs { font-family: 'Courier New', Courier, monospace; white-space: pre-wrap; line-height: 1.4; }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-darkbg text-gray-800 dark:text-gray-200 h-screen font-sans overflow-hidden flex">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white dark:bg-sidebar border-r border-gray-200 dark:border-gray-800 flex flex-col">
+        <div class="p-6 flex items-center gap-3 border-b border-gray-200 dark:border-gray-800">
+            <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold">DL</div>
+            <h1 class="text-xl font-bold tracking-tight">MediaForge <span class="text-xs text-gray-500">v3.2</span></h1>
+        </div>
+        <nav class="flex-1 p-4 space-y-2">
+            <button onclick="switchTab('downloader')" id="nav-downloader" class="w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 transition bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium"><span>📥</span> Downloader</button>
+            <button onclick="switchTab('history')" id="nav-history" class="w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 transition hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"><span>📜</span> History</button>
+            <button onclick="switchTab('logs')" id="nav-logs" class="w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 transition hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"><span>📟</span> Logs</button>
+        </nav>
+        <div class="p-4 border-t border-gray-200 dark:border-gray-800">
+             <button onclick="document.documentElement.classList.toggle('dark')" class="w-full p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-sm">Toggle Theme</button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto h-full p-8 relative">
+        
+        <!-- DOWNLOADER -->
+        <div id="view-downloader" class="fade-in max-w-4xl mx-auto">
+            <div class="bg-white dark:bg-cardbg rounded-2xl shadow-xl p-8 mb-8 border border-gray-100 dark:border-gray-700">
+                <label class="block text-sm font-medium mb-2 text-gray-500 dark:text-gray-400">Video URL Source</label>
+                <div class="flex gap-2">
+                    <input type="text" id="urlInput" class="flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="Paste URL here..." onpaste="setTimeout(fetchInfo, 100)">
+                    <button onclick="fetchInfo()" id="fetchBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg shadow-blue-500/30 transition disabled:opacity-50">Analyze</button>
+                </div>
+                <p id="statusMsg" class="mt-2 text-sm text-gray-500 h-5"></p>
+            </div>
+
+            <div id="selectionArea" class="hidden fade-in">
+                <div class="flex items-start gap-6 mb-8 bg-white dark:bg-cardbg p-6 rounded-2xl shadow-lg">
+                    <img id="thumbImg" src="" class="w-48 rounded-lg shadow-md object-cover aspect-video">
+                    <div class="flex-1">
+                        <h2 id="videoTitle" class="text-xl font-bold mb-2 leading-tight"></h2>
+                        <div class="flex gap-4 text-sm text-gray-500"><span id="videoDuration"></span></div>
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="bg-white dark:bg-cardbg rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
+                        <h3 class="text-lg font-bold mb-4">Video Stream</h3>
+                        <div id="videoList" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div>
+                    </div>
+                    <div id="audioCol" class="bg-white dark:bg-cardbg rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
+                        <h3 class="text-lg font-bold mb-4">Audio Stream</h3>
+                        <div id="audioList" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div>
+                    </div>
+                </div>
+
+                <button onclick="startDownload()" class="w-full mt-8 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-blue-500/25 transition transform hover:scale-[1.01]">Start Download</button>
+            </div>
+
+            <div id="processingArea" class="hidden fade-in mt-8">
+                <div class="bg-white dark:bg-cardbg rounded-2xl p-8 shadow-xl border border-gray-100 dark:border-gray-700">
+                    <h3 class="text-lg font-bold mb-6">Progress</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between mb-1"><span class="text-sm text-blue-500">Video</span><span class="text-xs text-gray-400" id="videoSpeed">0 MB/s</span></div>
+                            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2"><div id="progVideo" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div></div>
+                        </div>
+                        <div id="audioProgressRow">
+                            <div class="flex justify-between mb-1"><span class="text-sm text-green-500">Audio</span><span class="text-xs text-gray-400" id="audioSpeed">0 MB/s</span></div>
+                            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2"><div id="progAudio" class="bg-green-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div></div>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-600">
+                            <span class="text-sm font-medium">Status</span>
+                            <span id="mergeStatus" class="text-xs font-mono px-2 py-1 rounded bg-gray-200 dark:bg-gray-700">Running</span>
+                        </div>
+                    </div>
+                    <div id="resultArea" class="hidden mt-8 text-center">
+                        <h4 class="text-xl font-bold text-green-500 mb-2">Download Complete!</h4>
+                        <p id="finalStats" class="text-sm text-gray-500 mb-4"></p>
+                        <a id="downloadLink" href="#" class="bg-blue-600 text-white px-8 py-2 rounded-lg shadow hover:bg-blue-700">Save File</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- HISTORY -->
+        <div id="view-history" class="hidden fade-in max-w-6xl mx-auto">
+            <h2 class="text-2xl font-bold mb-6">Download History</h2>
+            <div class="bg-white dark:bg-cardbg rounded-xl shadow overflow-hidden border border-gray-200 dark:border-gray-700">
+                <table class="w-full text-left">
+                    <thead class="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                        <tr>
+                            <th class="p-4 text-sm text-gray-500">Date</th>
+                            <th class="p-4 text-sm text-gray-500">Title/Filename</th>
+                            <th class="p-4 text-sm text-gray-500">Quality</th>
+                            <th class="p-4 text-sm text-gray-500">Lang</th>
+                            <th class="p-4 text-sm text-gray-500">Size</th>
+                            <th class="p-4 text-sm text-gray-500">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody" class="divide-y divide-gray-200 dark:divide-gray-700"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- LOGS -->
+        <div id="view-logs" class="hidden fade-in max-w-5xl mx-auto h-full flex flex-col">
+            <h2 class="text-2xl font-bold mb-4">Logs</h2>
+            <div class="flex-1 bg-black rounded-xl p-4 overflow-y-auto border border-gray-800 font-mono text-xs text-gray-300 terminal-logs shadow-inner" id="logContainer"></div>
+        </div>
+
+    </main>
+    <div id="toast" class="fixed bottom-5 right-5 bg-red-600 text-white px-6 py-3 rounded-lg shadow-xl transform translate-y-20 opacity-0 transition-all duration-300 z-50"></div>
+
+    <script>
+        let selectedVideo=null, selectedAudio=null, selectedLang=null, selectedQualityLabel=null, hasAudioOptions=false, logInterval=null;
+
+        function switchTab(id) {
+            ['downloader','history','logs'].forEach(v => {
+                document.getElementById(`view-${v}`).classList.add('hidden');
+                document.getElementById(`nav-${v}`).classList.remove('bg-blue-50','dark:bg-blue-900/20','text-blue-600','dark:text-blue-400');
+            });
+            document.getElementById(`view-${id}`).classList.remove('hidden');
+            document.getElementById(`nav-${id}`).classList.add('bg-blue-50','dark:bg-blue-900/20','text-blue-600','dark:text-blue-400');
+            if(id==='history') loadHistory();
+            if(id==='logs') { loadLogs(); if(!logInterval) logInterval=setInterval(loadLogs,2000); } else clearInterval(logInterval);
+        }
+
+        function getLangName(code) {
+            if (!code || code === 'unk') return '';
+            try { return new Intl.DisplayNames(['en'], { type: 'language' }).of(code); } catch (e) { return code.toUpperCase(); }
+        }
+
+        async function fetchInfo() {
+            const url = document.getElementById('urlInput').value;
+            if(!url) return showToast('Enter URL');
+            document.getElementById('fetchBtn').disabled=true;
+            document.getElementById('statusMsg').innerText='Analyzing...';
+            try {
+                const res = await fetch('/api/info', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
+                const data = await res.json();
+                if(data.error) throw new Error(data.error);
+                renderSelection(data);
+                document.getElementById('selectionArea').classList.remove('hidden');
+                document.getElementById('statusMsg').innerText='';
+            } catch(e) { showToast(e.message); } 
+            finally { document.getElementById('fetchBtn').disabled=false; }
+        }
+
+        function renderSelection(data) {
+            document.getElementById('videoTitle').innerText = data.title;
+            document.getElementById('thumbImg').src = data.thumbnail;
+            document.getElementById('videoDuration').innerText = `${Math.floor(data.duration/60)}:${(data.duration%60).toString().padStart(2,'0')}`;
+            
+            const vList=document.getElementById('videoList'); vList.innerHTML='';
+            data.video_formats.forEach((f,i) => {
+                const div=document.createElement('div');
+                div.className='p-3 border border-gray-200 dark:border-gray-700 rounded mb-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 flex justify-between';
+                div.innerHTML=`<span>${f.resolution} <small class="text-gray-400">(${f.ext})</small></span> <span class="font-mono text-xs">${f.filesize_str}</span>`;
+                div.onclick=()=>{ 
+                    Array.from(vList.children).forEach(c=>c.classList.remove('border-blue-500','ring-1'));
+                    div.classList.add('border-blue-500','ring-1'); 
+                    selectedVideo=f.format_id; 
+                    selectedQualityLabel=f.resolution; // Capture quality label
+                };
+                vList.appendChild(div);
+                if(i===0) div.click();
+            });
+
+            const aList=document.getElementById('audioList'); aList.innerHTML='';
+            if(data.audio_formats.length > 0) {
+                hasAudioOptions=true;
+                document.getElementById('audioCol').classList.remove('hidden');
+                data.audio_formats.forEach((f,i) => {
+                    const div=document.createElement('div');
+                    div.className='p-3 border border-gray-200 dark:border-gray-700 rounded mb-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 flex justify-between';
+                    const langName = getLangName(f.language);
+                    div.innerHTML=`<span>${f.abr}kbps <small class="text-gray-400">(${langName||f.language})</small></span> <span class="font-mono text-xs">${f.filesize_str}</span>`;
+                    div.onclick=()=>{ 
+                        Array.from(aList.children).forEach(c=>c.classList.remove('border-blue-500','ring-1'));
+                        div.classList.add('border-blue-500','ring-1'); selectedAudio=f.format_id; selectedLang=langName||f.language;
+                    };
+                    aList.appendChild(div);
+                    if(i===0) div.click();
+                });
+            } else {
+                hasAudioOptions=false;
+                document.getElementById('audioCol').classList.add('hidden');
+                selectedLang = "Default"; 
+            }
+        }
+
+        async function startDownload() {
+            if(!selectedVideo) return showToast('Select Video');
+            
+            document.getElementById('processingArea').classList.remove('hidden');
+            document.getElementById('processingArea').scrollIntoView({behavior:'smooth'});
+            
+            if(!hasAudioOptions) document.getElementById('audioProgressRow').classList.add('hidden');
+            else document.getElementById('audioProgressRow').classList.remove('hidden');
+
+            const res = await fetch('/api/download', {
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({
+                    url:document.getElementById('urlInput').value,
+                    video_format:selectedVideo,
+                    audio_format:selectedAudio,
+                    title:document.getElementById('videoTitle').innerText,
+                    language:selectedLang,
+                    quality_label:selectedQualityLabel
+                })
+            });
+            const data = await res.json();
+            const interval = setInterval(async () => {
+                const pRes = await fetch(`/api/progress/${data.task_id}`);
+                const pData = await pRes.json();
+                
+                if(pData.error) { clearInterval(interval); showToast(pData.error); return; }
+
+                document.getElementById('progVideo').style.width=`${pData.progress.video.percent}%`;
+                
+                if(hasAudioOptions) {
+                    document.getElementById('progAudio').style.width=`${pData.progress.audio.percent}%`;
+                }
+
+                if(pData.status==='merging') document.getElementById('mergeStatus').innerText='Merging/Finalizing...';
+                if(pData.status==='completed') {
+                    clearInterval(interval);
+                    document.getElementById('mergeStatus').innerText='Done';
+                    document.getElementById('resultArea').classList.remove('hidden');
+                    document.getElementById('finalStats').innerText = pData.result.filename;
+                    // Use encodeURIComponent to safely handle emojis in URL
+                    const safeUrl = `/download/${encodeURIComponent(pData.result.filename)}`;
+                    document.getElementById('downloadLink').href = safeUrl;
+                } else if (pData.status === 'failed') {
+                    clearInterval(interval);
+                    showToast("Download Failed: " + pData.error);
+                }
+            }, 1000);
+        }
+
+        async function loadHistory() {
+            const res = await fetch('/api/history');
+            const rows = await res.json();
+            document.getElementById('historyTableBody').innerHTML = rows.map(r => {
+                const isDeleted = r.deleted === 1;
+                const statusHtml = isDeleted ? 
+                    '<span class="px-2 py-1 rounded bg-red-100 text-red-700 text-xs">Deleted</span>' : 
+                    '<span class="px-2 py-1 rounded bg-green-100 text-green-700 text-xs">Available</span>';
+                
+                return `<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                    <td class="p-4 text-sm text-gray-600 dark:text-gray-300">${new Date(r.timestamp).toLocaleDateString()}</td>
+                    <td class="p-4 text-sm font-medium truncate max-w-xs" title="${r.filename}">${r.filename}</td>
+                    <td class="p-4 text-sm text-gray-600 dark:text-gray-400">${r.quality || '-'}</td>
+                    <td class="p-4 text-sm text-gray-600 dark:text-gray-400">${r.language || '-'}</td>
+                    <td class="p-4 text-sm text-gray-600 dark:text-gray-400">${(r.file_size/1024/1024).toFixed(2)} MB</td>
+                    <td class="p-4">${statusHtml}</td>
+                </tr>`;
+            }).join('');
+        }
+        
+        async function loadLogs() {
+            const res = await fetch('/api/logs');
+            const data = await res.json();
+            const container = document.getElementById('logContainer');
+            container.innerHTML = data.logs.map(l => {
+                let color = 'text-gray-400';
+                if(l.includes('ERROR')) color='text-red-400 font-bold';
+                if(l.includes('INFO')) color='text-blue-300';
+                return `<div class="${color} border-b border-gray-800/30 pb-1">${l}</div>`;
+            }).join('');
+            container.parentElement.scrollTop = container.parentElement.scrollHeight;
+        }
+        
+        function formatSpeed(b) { if(!b) return '0 MB/s'; return (b/(1024*1024)).toFixed(2)+' MB/s'; }
+        function showToast(m) { const t=document.getElementById('toast'); t.innerText=m; t.style.transform='translateY(0)'; t.style.opacity='1'; setTimeout(()=>{t.style.transform='translateY(20px)';t.style.opacity='0'},3000); }
+        function handlePaste() { setTimeout(fetchInfo, 100); }
+    </script>
+</body>
+</html>

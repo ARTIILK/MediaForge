@@ -1,0 +1,5 @@
+Package: mediaforge
+Version: 3.0
+Architecture: amd64
+Maintainer: You
+Description: MediaForge V3 - Smart Video Downloader

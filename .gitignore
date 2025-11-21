@@ -1,0 +1,32 @@
+Python
+
+pycache/
+*.py[cod]
+venv/
+.env
+
+PyInstaller Build Artifacts
+
+build/
+dist/
+*.spec
+
+Downloaded Tools & Data
+
+ffmpeg
+ffmpeg.exe
+*.deb
+downloads/
+history.db
+app.log
+
+User Plugins (Only track the defaults in the plugins folder, not user copies)
+
+Since plugins/ is part of source, we keep it, but ignore compiled pyc
+
+plugins/pycache/
+
+IDEs
+
+.vscode/
+.idea/
