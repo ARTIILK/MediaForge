@@ -61,4 +61,4 @@ Clone the repo and place the correct `ffmpeg` binary in the root folder:
 ```bash
 git clone https://github.com/ARTIILK/MediaForge.git
 cd MediaForge
-# Download ffmpeg binary manually and place it here
+# after runing the app visit 127.0.0.1:5000/
